@@ -55,7 +55,10 @@
         $('html, body').animate({scrollTop: 0}, 400, 'easeInOutExpo');
         return false;
     });
-    
+
+    // console.log("main.js is loaded!");
+
+   
 
     // Typed Initiate
     if ($('.typed-text-output').length == 1) {
