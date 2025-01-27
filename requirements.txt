@@ -1,0 +1,6 @@
+Flask
+Flask-Cors
+transformers
+torch
+fuzzywuzzy
+python-Levenshtein
