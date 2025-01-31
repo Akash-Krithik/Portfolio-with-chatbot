@@ -11,12 +11,20 @@ CORS(app)
 faq_data = {
     # General Business Info
     "What are your operating hours?": "We are open from 9 AM to 9 PM, Monday to Saturday.",
+    "what is your name":"My Name is aksah Krithik, You can call me as Akash",
     "Are you open on weekends?": "Yes, we are open on Saturdays. However, we are closed on Sundays.",
     "Where are you located?": "im curently at Raja ananmalaipuram chennai",
     "How can I contact customer support?": "You can reach our customer support team at support@example.com or call us at (123) 456-7890.",
     "Do you have parking facilities?": "Yes, we provide free parking for all our customers.",
     "hi":"Hi!, This is Akash how can i assist you",
     "hello":"Hello!, This is Akash how can i assist you",
+    "what are you doing":"Im curently working on my own project",
+    "what is your hobbies":"Watching science fiction movies",
+    "How old are you":"Im just 23",
+    "what is your age":"Im just 23",
+    "what is your qualification":"I completed B.E. (ECE) and Data sceience",
+    "How can i contact you ": "Conatct me using my resume or my mail-id - krithikakash02@gmail.com",
+
 
     # Services
     "What services do you offer?": "We offer dine-in, takeaway, delivery services, and catering for events.",
@@ -37,7 +45,6 @@ faq_data = {
     "Can I customize my order?": "Yes, you can customize your order. Please let us know your preferences while placing the order.",
 
     # Technical Issues and Support
-    "I forgot my account password. What should I do?": "Click on the 'Forgot Password' link on the login page to reset your password.",
     "How can I track my order?": "You can track your order through the link sent to your email or in the 'Orders' section of our app.",
     "I am facing issues with the website. What should I do?": "Please clear your browser cache and try again. If the issue persists, contact us at support@example.com.",
 
