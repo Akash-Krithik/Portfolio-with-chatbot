@@ -1,88 +1,84 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from transformers import pipeline
-from fuzzywuzzy import process
-
+import requests
+from bs4 import BeautifulSoup
+import urllib.parse
+import re
 
 app = Flask(__name__)
 CORS(app)
 
-# Example FAQ data
-faq_data = {
-    # General Business Info
-    "What are your operating hours?": "We are open from 9 AM to 9 PM, Monday to Saturday.",
-    "what is your name":"My Name is aksah Krithik, You can call me as Akash",
-    "Are you open on weekends?": "Yes, we are open on Saturdays. However, we are closed on Sundays.",
-    "Where are you located?": "im curently at Raja ananmalaipuram chennai",
-    "How can I contact customer support?": "You can reach our customer support team at support@example.com or call us at (123) 456-7890.",
-    "Do you have parking facilities?": "Yes, we provide free parking for all our customers.",
-    "hi":"Hi!, This is Akash how can i assist you",
-    "hello":"Hello!, This is Akash how can i assist you",
-    "what are you doing":"Im curently working on my own project",
-    "what is your hobbies":"Watching science fiction movies",
-    "How old are you":"Im just 23",
-    "what is your age":"Im just 23",
-    "what is your qualification":"I completed B.E. (ECE) and Data sceience",
-    "How can i contact you ": "Conatct me using my resume or my mail-id - krithikakash02@gmail.com",
+llm = pipeline(
+    "text-generation",
+    model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    torch_dtype="auto",
+    device_map="auto",
+    max_new_tokens=16
+)
 
-
-    # Services
-    "What services do you offer?": "We offer dine-in, takeaway, delivery services, and catering for events.",
-    "Do you offer delivery?": "Yes, we offer delivery services. Delivery fees may vary depending on the location.",
-    "Can I book a table online?": "Yes, you can book a table through our website or mobile app.",
-    "Do you provide catering services?": "Yes, we offer catering for corporate events, parties, and gatherings.",
-
-    # Payment and Pricing
-    "What payment methods do you accept?": "We accept cash, credit/debit cards, and digital wallets like Google Pay and Apple Pay.",
-    "Do you have any ongoing discounts or promotions?": "Yes, we regularly have discounts and promotions. Check our website or social media pages for the latest offers.",
-    "Do you offer refunds?": "Refunds are available for cancellations made within 24 hours of purchase. Terms and conditions apply.",
-    "Is there a minimum order value for delivery?": "Yes, the minimum order value for delivery is $15.",
-
-    # Products and Availability
-    "What are your most popular items?": "Our bestsellers are the Classic Cheeseburger, Pepperoni Pizza, and Chocolate Lava Cake.",
-    "Are your products vegetarian-friendly?": "Yes, we have a variety of vegetarian and vegan-friendly options available.",
-    "Do you offer gluten-free options?": "Yes, we provide gluten-free alternatives for select items on our menu.",
-    "Can I customize my order?": "Yes, you can customize your order. Please let us know your preferences while placing the order.",
-
-    # Technical Issues and Support
-    "How can I track my order?": "You can track your order through the link sent to your email or in the 'Orders' section of our app.",
-    "I am facing issues with the website. What should I do?": "Please clear your browser cache and try again. If the issue persists, contact us at support@example.com.",
-
-    # Policies
-    "What is your cancellation policy?": "You can cancel your order within 15 minutes of placing it. After that, cancellations are not allowed.",
-    "Do you charge for cancellations?": "No, cancellations made within the allowed time frame are free of charge.",
-    "What is your privacy policy?": "We value your privacy and do not share your personal information with third parties. Please visit our Privacy Policy page for details.",
-    "What is your return policy?": "We accept returns for defective or damaged items within 7 days of purchase. Contact customer support for assistance.",
-
-    # General Inquiries
-    "Do you have a mobile app?": "Yes, our app is available on both iOS and Android platforms. Download it from the App Store or Google Play.",
-    "Are your services available internationally?": "Currently, our services are available only within the United States.",
-    "Can I subscribe to your newsletter?": "Yes, you can subscribe to our newsletter for updates on offers, new products, and more."
-}
-
-
-# Load HuggingFace conversational model
-chatbot = pipeline("text-generation", model="microsoft/DialoGPT-medium")
-
-def get_response(user_input):
-    # Fuzzy matching for FAQs
-    question, score = process.extractOne(user_input, faq_data.keys())
-    if score >= 70:  # If confidence score is high enough
-        return faq_data[question]
-
-    # Fallback response using GPT
+def fetch_web_content(query):
+    search_url = f"https://duckduckgo.com/html/?q={query.replace(' ', '+')}"
     try:
-        response = chatbot(user_input, max_length=100, num_return_sequences=1)
-        return response[0]['generated_text']
+        resp = requests.get(search_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        results = soup.find_all('a', {'class': 'result__a'}, href=True)
+        if results:
+            url = results[0]['href']
+            parsed = urllib.parse.urlparse(url)
+            uddg = urllib.parse.parse_qs(parsed.query).get('uddg')
+            if uddg:
+                url = uddg[0]
+            elif url.startswith('//'):
+                url = 'https:' + url
+            elif url.startswith('/'):
+                url = 'https://duckduckgo.com' + url
+            page = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+            page_soup = BeautifulSoup(page.text, "html.parser")
+            for p in page_soup.find_all('p'):
+                text = p.get_text().strip()
+                if len(text) > 40:
+                    return text[:300]
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error fetching web content: {e}"
+    return "No relevant web data found."
 
+def extract_answer(generated_text):
+    if "Answer:" in generated_text:
+        answer = generated_text.split("Answer:", 1)[-1].strip()
+    elif "Assistant:" in generated_text:
+        answer = generated_text.split("Assistant:", 1)[-1].strip()
+    else:
+        answer = generated_text.strip()
+    stop_match = re.search(r"(User:|Assistant:)", answer[1:])
+    if stop_match:
+        answer = answer[:stop_match.start()+1].strip()
+    return answer
+
+def rag_answer(question):
+    greetings = ["hi", "hello", "hey"]
+    if any(greet in question.lower() for greet in greetings):
+        prompt = f"User: {question}\nAssistant:"
+        response = llm(prompt)
+        generated_text = response[0]['generated_text']
+    else:
+        context = fetch_web_content(question)
+        prompt = (
+            f"Use the following context to answer the question briefly.\n\n"
+            f"Context: {context}\n"
+            f"Question: {question}\nAnswer:"
+        )
+        response = llm(prompt)
+        generated_text = response[0]['generated_text']
+    return extract_answer(generated_text)
 
 @app.route('/chat', methods=['POST'])
 def chat():
     user_input = request.json.get("message")
-    response = get_response(user_input)
-    return jsonify({"response": response})
+    if not user_input:
+        return jsonify({"response": "Please provide a message."}), 400
+    answer = rag_answer(user_input)
+    return jsonify({"response": answer})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

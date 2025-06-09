@@ -1,7 +1,9 @@
-Flask
-Flask-Cors
+flask
+flask_cors
+chromadb
+sentence-transformers
 transformers
 torch
-fuzzywuzzy
-python-Levenshtein
-gunicorn
+beautifulsoup4
+requests
+accelerate>=0.26.0
